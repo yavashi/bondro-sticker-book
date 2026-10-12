@@ -23,6 +23,7 @@ interface StickerContextType {
   masters: StickerMaster[];
   proposals: TradeProposal[];
   giftMessages: GiftMessage[];
+  updateProfile: (username: string, avatarUrl: string) => void;
   updateStickerQuantity: (stickerMasterId: string, delta: number) => void;
   toggleTradeable: (stickerMasterId: string) => void;
   toggleWishlist: (stickerMasterId: string) => void;
@@ -34,6 +35,7 @@ interface StickerContextType {
     finishType: FinishType;
     quantity: number;
     userPhotoUrl?: string;
+    catalogCode?: string;
   }) => void;
   addFriendByCode: (friendCode: string) => boolean;
   createTradeProposal: (
@@ -389,8 +391,29 @@ export const StickerProvider: React.FC<{ children: React.ReactNode }> = ({
       } catch (e) {
         console.error("Failed to parse saved profile", e);
       }
+    } else {
+      // 初回訪問時: ランダムな一意のフレンドコードを自動発行
+      const randomCode = `BON-${Math.floor(1000 + Math.random() * 9000)}`;
+      setMyProfile((prev) => ({
+        ...prev,
+        username: "わたし",
+        friendCode: randomCode,
+      }));
     }
   }, []);
+
+  // プロフィール更新 (ニックネーム・アバター変更)
+  const updateProfile = (username: string, avatarUrl: string) => {
+    setMyProfile((prev) => {
+      const updated = {
+        ...prev,
+        username: username.trim() || prev.username,
+        avatarUrl: avatarUrl || prev.avatarUrl,
+      };
+      localStorage.setItem("bondro_my_profile", JSON.stringify(updated));
+      return updated;
+    });
+  };
 
   // 状態変更時のローカル保存
   useEffect(() => {
@@ -476,14 +499,22 @@ export const StickerProvider: React.FC<{ children: React.ReactNode }> = ({
     finishType: FinishType;
     quantity: number;
     userPhotoUrl?: string;
+    catalogCode?: string;
   }) => {
-    // 既存マスターで同名があるか検索
-    let master = masters.find(
-      (m) => m.name.toLowerCase() === draft.name.toLowerCase()
-    );
+    // 市販カタログコードがある場合は最優先で公式マスターに紐付け
+    let master: StickerMaster | undefined;
+    if (draft.catalogCode && draft.catalogCode !== "CUSTOM") {
+      master = masters.find((m) => m.code === draft.catalogCode);
+    }
+    if (!master) {
+      master = masters.find(
+        (m) => m.name.toLowerCase() === draft.name.toLowerCase()
+      );
+    }
     if (!master) {
       master = {
         id: `sm-${Date.now()}`,
+        code: draft.catalogCode || "CUSTOM",
         name: draft.name,
         seriesName: draft.series || "マイオリジナル",
         motif: draft.motif || "スイーツ",
@@ -579,6 +610,7 @@ export const StickerProvider: React.FC<{ children: React.ReactNode }> = ({
         masters,
         proposals,
         giftMessages,
+        updateProfile,
         updateStickerQuantity,
         toggleTradeable,
         toggleWishlist,

@@ -1,6 +1,40 @@
 import { NextResponse } from "next/server";
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 
+// 市販ボンボンドロップシール公式カタログ概要（AI照合用）
+const CATALOG_REFERENCE_TEXT = `
+【公式市販カタログ一覧】
+■ フルーツ＆スイーツドロップ (FD):
+- FD-01: とろける完熟いちごドロップ (赤・ピンク / クリアドロップ)
+- FD-02: ぷっくりフレッシュチェリー (濃い赤 / クリアドロップ)
+- FD-03: シャインマスカットジュレ (黄緑 / クリアドロップ)
+- FD-04: ハニーレモンキャンディ (黄 / ラメ入り)
+- FD-05: ピーチネクターハート (ピンク / パール)
+- FD-06: ブルーハワイソーダドロップ (水色 / ラメ入り)
+- FD-07: メロンクリームソーダ (緑 / クリアドロップ)
+- FD-08: ショコラベリーボンボン (茶・チョコ / ぷっくりマット)
+
+■ ゆめかわアニマルドロップ (YA):
+- YA-01: パステルみるくうさぎ (白・パステルピンク / パール)
+- YA-02: ラベンダーこねこキャンディ (薄紫 / オーロラ)
+- YA-03: もこもこクラウドベア (水色 / ラメ入り)
+- YA-04: いちごみるくハムスター (ピンク / クリアドロップ)
+- YA-05: レインボーユニコーン (紫・虹色 / オーロラ)
+- YA-06: チョコミントわんこ (ミントグリーン / クリアドロップ)
+- YA-07: シュガーピンクひつじ (ピンク / パール)
+- YA-08: きらきらペンギンドロップ (青 / ラメ入り)
+
+■ キラキラジュエル＆魔法 (KJ):
+- KJ-01: ルビークラウンハート (深紅 / オーロラ)
+- KJ-02: サファイアスターナイト (青 / ラメ入り)
+- KJ-03: エメラルドドロップ (深緑 / クリアドロップ)
+- KJ-04: アメジストクリスタル (紫 / オーロラ)
+- KJ-05: ダイヤティアラドロップ (白・クリア / パール)
+- KJ-06: トパーズサンシャイン (橙・黄 / ラメ入り)
+- KJ-07: オーロラプリズムスター (多色 / オーロラ)
+- KJ-08: ローズクォーツペンダント (薄ピンク / パール)
+`;
+
 // Gemini API 構造化JSONスキーマ
 const responseSchema: Schema = {
   type: Type.OBJECT,
@@ -10,13 +44,17 @@ const responseSchema: Schema = {
       items: {
         type: Type.OBJECT,
         properties: {
+          catalog_code: {
+            type: Type.STRING,
+            description: "該当する市販カタログコード (例: FD-01, YA-03, KJ-02)。該当なし・不明なら 'CUSTOM'",
+          },
           name_candidate: {
             type: Type.STRING,
-            description: "シールの名称または特徴的な愛称 (例: ぷっくりイチゴ, ソーダドロップ)",
+            description: "シールの名称または特徴的な愛称 (市販シールならその公式名)",
           },
           series_candidate: {
             type: Type.STRING,
-            description: "推測されるシリーズ名 (不明なら スイートコレクション 等)",
+            description: "シリーズ名 (フルーツ＆スイーツドロップ, ゆめかわアニマルドロップ, キラキラジュエル＆魔法, または推測名)",
           },
           motif: {
             type: Type.STRING,
@@ -55,13 +93,20 @@ const responseSchema: Schema = {
             type: Type.NUMBER,
             description: "認識の確信度 (0.0〜1.0)",
           },
+          box_2d: {
+            type: Type.ARRAY,
+            items: { type: Type.INTEGER },
+            description: "シールが写っている領域の矩形バウンディングボックス [ymin, xmin, ymax, xmax] (0〜1000の整数)",
+          },
         },
         required: [
+          "catalog_code",
           "name_candidate",
           "motif",
           "primary_color",
           "finish_type",
           "estimated_count",
+          "box_2d",
         ],
       },
     },
@@ -73,31 +118,26 @@ const responseSchema: Schema = {
 const MOCK_RECOGNITION_FALLBACK = {
   stickers: [
     {
-      name_candidate: "きらきらチェリードロップ",
-      series_candidate: "フルーツドロップ",
+      catalog_code: "FD-01",
+      name_candidate: "とろける完熟いちごドロップ",
+      series_candidate: "フルーツ＆スイーツドロップ",
       motif: "スイーツ",
       primary_color: "#FF1493",
       finish_type: "クリアドロップ",
-      estimated_count: 2, // ダブりテスト用
-      confidence_score: 0.95,
+      estimated_count: 2,
+      confidence_score: 0.98,
+      box_2d: [150, 150, 850, 850],
     },
     {
-      name_candidate: "パステルクラウンスター",
-      series_candidate: "ドリーミースカイ",
-      motif: "星",
-      primary_color: "#BA55D3",
-      finish_type: "オーロラ",
-      estimated_count: 1,
-      confidence_score: 0.9,
-    },
-    {
-      name_candidate: "ぷっくりベアキャンディ",
-      series_candidate: "ファンシーアニマル",
+      catalog_code: "YA-03",
+      name_candidate: "もこもこクラウドベア",
+      series_candidate: "ゆめかわアニマルドロップ",
       motif: "動物",
-      primary_color: "#FFB6C1",
+      primary_color: "#87CEEB",
       finish_type: "ラメ入り",
       estimated_count: 1,
-      confidence_score: 0.88,
+      confidence_score: 0.92,
+      box_2d: [200, 200, 800, 800],
     },
   ],
 };
@@ -146,7 +186,7 @@ export async function POST(req: Request) {
 
     const apiKey = process.env.GEMINI_API_KEY;
 
-    // APIキーが存在しない場合は開発用モックを返却 (AGENTS.md 2.4規約)
+    // APIキーが存在しない場合は開発用モックを返却
     if (!apiKey) {
       console.warn(
         "GEMINI_API_KEY is not set. Falling back to mock recognition result."
@@ -163,10 +203,19 @@ export async function POST(req: Request) {
     // Base64プレフィックスの除去
     const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
 
-    const prompt = `あなたは「ボンボンドロップシール（立体・透明感のあるドロップ型シール）」の鑑識AIエキスパートです。
-提供された写真から、写っているボンボンドロップシールを可能な限り正確に特定・分類してください。
-写真に複数のシールがある場合は、見つかったシールをすべてリストアップしてください。
-光の反射やツヤ、ラメ、パール加工を注意深く識別し、指定のJSONスキーマに従って出力してください。`;
+    const prompt = `あなたは「ボンボンドロップシール（立体・ぷっくりした樹脂ドロップシール）」の鑑定AIエキスパートです。
+提供された写真から、写っているボンボンドロップシールを特定・鑑識してください。
+写真に写っている個々のシールについて、必ず以下の手順を実行してください：
+
+1. 【市販カタログとの照合】
+以下の市販カタログ一覧を参照し、写真のシールが該当する場合はそのカタログコード（FD-01など）と正式名称・シリーズ名を割り当ててください。カタログにない場合は 'CUSTOM' とし、見た目に合わせた愛称をつけてください。
+${CATALOG_REFERENCE_TEXT}
+
+2. 【輪郭・位置の特定 (box_2d)】
+画像全体を縦0〜1000、横0〜1000とした時の、そのシールが写っている矩形バウンディングボックス [ymin, xmin, ymax, xmax] を正確に特定してください。この座標を元にクライアント側でシールの実物写真を切り抜いてシール帳に貼ります。
+
+3. 【質感の識別】
+光の反射やツヤ、ラメ、パール、オーロラ、ぷっくりマット加工を注意深く識別し、指定のJSONスキーマに従って出力してください。`;
 
     const response = await ai.models.generateContent({
       model: "gemini-3.8-flash",
@@ -203,7 +252,6 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("Gemini recognition error:", error);
-    // エラー時もユーザー体験を阻害しないようモックで安全にフォールバック
     return NextResponse.json({
       ...MOCK_RECOGNITION_FALLBACK,
       isMock: true,

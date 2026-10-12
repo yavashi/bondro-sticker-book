@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
+import { motion } from "framer-motion";
 import { UserSticker } from "@/types";
 import { Sparkles, Trash2, RotateCcw, Download, Share2, Check } from "lucide-react";
 import { sounds } from "@/lib/sound";
@@ -76,7 +77,7 @@ export default function DecoSheet({ myStickers }: DecoSheetProps) {
   };
 
   // Canvas描画による画像エクスポート (PNG保存)
-  const handleExportImage = () => {
+  const handleExportImage = async () => {
     const canvas = document.createElement("canvas");
     canvas.width = 600;
     canvas.height = 750;
@@ -103,11 +104,24 @@ export default function DecoSheet({ myStickers }: DecoSheetProps) {
     ctx.textAlign = "center";
     ctx.fillText("✨ BonDrop Sticker Book Deco Sheet ✨", canvas.width / 2, 35);
 
+    // 写真の事前ロード
+    const loadedImages = await Promise.all(
+      placedStickers.map((placed) => {
+        if (!placed.userSticker.userPhotoUrl) return Promise.resolve(null);
+        return new Promise<HTMLImageElement | null>((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => resolve(null);
+          img.src = placed.userSticker.userPhotoUrl!;
+        });
+      })
+    );
+
     // 各シールの描画
-    placedStickers.forEach((placed) => {
+    placedStickers.forEach((placed, idx) => {
       const posX = (placed.x / 100) * canvas.width;
       const posY = (placed.y / 100) * canvas.height;
-      const size = 70 * placed.scale;
+      const size = 72 * placed.scale;
 
       ctx.save();
       ctx.translate(posX, posY);
@@ -122,21 +136,32 @@ export default function DecoSheet({ myStickers }: DecoSheetProps) {
       ctx.shadowOffsetY = 6;
       ctx.fill();
 
-      // 絵文字モチーフ
-      ctx.shadowColor = "transparent";
-      ctx.font = "32px sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
+      const img = loadedImages[idx];
+      if (img) {
+        ctx.shadowColor = "transparent";
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(0, 0, size / 2 - 4, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(img, -size / 2 + 4, -size / 2 + 4, size - 8, size - 8);
+        ctx.restore();
+      } else {
+        // 絵文字モチーフ
+        ctx.shadowColor = "transparent";
+        ctx.font = "32px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
 
-      const motif = placed.userSticker.sticker.motif;
-      let emoji = "🍬";
-      if (motif === "スイーツ") emoji = "🍓";
-      if (motif === "動物") emoji = "🐰";
-      if (motif === "星") emoji = "⭐";
-      if (motif === "ハート") emoji = "💖";
-      if (motif === "フラワー") emoji = "🌸";
+        const motif = placed.userSticker.sticker.motif;
+        let emoji = "🍬";
+        if (motif === "スイーツ") emoji = "🍓";
+        if (motif === "動物") emoji = "🐰";
+        if (motif === "星") emoji = "⭐";
+        if (motif === "ハート") emoji = "💖";
+        if (motif === "フラワー") emoji = "🌸";
 
-      ctx.fillText(emoji, 0, 2);
+        ctx.fillText(emoji, 0, 2);
+      }
       ctx.restore();
     });
 
@@ -173,7 +198,7 @@ export default function DecoSheet({ myStickers }: DecoSheetProps) {
       <div className="flex items-center justify-between px-1">
         <span className="text-[11px] font-bold text-pink-600 flex items-center gap-1">
           <Sparkles size={12} />
-          シールを選んでタップでペタッ！
+          シールを選んでタップでペタッ！つかんで自由に動かせるよ ✨
         </span>
         <div className="flex items-center gap-1.5">
           <button
@@ -208,15 +233,25 @@ export default function DecoSheet({ myStickers }: DecoSheetProps) {
               }`}
             >
               <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center text-lg shadow-inner"
+                className="w-9 h-9 rounded-xl flex items-center justify-center text-lg shadow-inner overflow-hidden relative"
                 style={{ backgroundColor: s.sticker.color }}
               >
-                {s.sticker.motif === "スイーツ" && "🍓"}
-                {s.sticker.motif === "動物" && "🐰"}
-                {s.sticker.motif === "星" && "⭐"}
-                {s.sticker.motif === "ハート" && "💖"}
-                {s.sticker.motif === "フラワー" && "🌸"}
-                {s.sticker.motif === "その他" && "🍬"}
+                {s.userPhotoUrl ? (
+                  <img
+                    src={s.userPhotoUrl}
+                    alt={s.sticker.name}
+                    className="w-full h-full object-contain p-0.5"
+                  />
+                ) : (
+                  <>
+                    {s.sticker.motif === "スイーツ" && "🍓"}
+                    {s.sticker.motif === "動物" && "🐰"}
+                    {s.sticker.motif === "星" && "⭐"}
+                    {s.sticker.motif === "ハート" && "💖"}
+                    {s.sticker.motif === "フラワー" && "🌸"}
+                    {s.sticker.motif === "その他" && "🍬"}
+                  </>
+                )}
               </div>
               <span className="text-[9px] font-bold mt-1 truncate max-w-[50px]">
                 {s.sticker.name}
@@ -246,36 +281,59 @@ export default function DecoSheet({ myStickers }: DecoSheetProps) {
 
         {/* 貼られたシールたち */}
         {placedStickers.map((placed) => (
-          <div
+          <motion.div
             key={placed.id}
-            onClick={(e) => handleRemovePlaced(placed.id, e)}
+            drag
+            dragConstraints={sheetRef}
+            dragElastic={0.08}
+            whileDrag={{ scale: placed.scale * 1.15, zIndex: 40 }}
             style={{
               left: `${placed.x}%`,
               top: `${placed.y}%`,
-              transform: `translate(-50%, -50%) rotate(${placed.rotation}deg) scale(${placed.scale})`,
+              position: "absolute",
             }}
-            className="group absolute cursor-pointer hover:scale-125 transition-transform duration-200"
+            className="group cursor-grab active:cursor-grabbing select-none"
           >
             <div
               className="sticker-drop w-16 h-16 rounded-2xl flex items-center justify-center relative shadow-lg"
-              style={{ backgroundColor: placed.userSticker.sticker.color }}
+              style={{
+                backgroundColor: placed.userSticker.sticker.color || "#FFB6C1",
+                transform: `rotate(${placed.rotation}deg) scale(${placed.scale})`,
+              }}
             >
-              <div className="sticker-shine" />
-              <span className="text-2xl filter drop-shadow select-none">
-                {placed.userSticker.sticker.motif === "スイーツ" && "🍓"}
-                {placed.userSticker.sticker.motif === "動物" && "🐰"}
-                {placed.userSticker.sticker.motif === "星" && "⭐"}
-                {placed.userSticker.sticker.motif === "ハート" && "💖"}
-                {placed.userSticker.sticker.motif === "フラワー" && "🌸"}
-                {placed.userSticker.sticker.motif === "その他" && "🍬"}
-              </span>
+              <div className="sticker-shine pointer-events-none" />
 
-              {/* ホバー時の剥がすアイコン */}
-              <div className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 bg-rose-500 text-white p-1 rounded-full shadow-md transition-opacity">
+              {placed.userSticker.userPhotoUrl ? (
+                <div className="w-full h-full p-1.5 flex items-center justify-center">
+                  <img
+                    src={placed.userSticker.userPhotoUrl}
+                    alt={placed.userSticker.sticker.name}
+                    className="w-full h-full object-contain filter drop-shadow-sm rounded-xl pointer-events-none"
+                    draggable={false}
+                  />
+                </div>
+              ) : (
+                <span className="text-2xl filter drop-shadow select-none pointer-events-none">
+                  {placed.userSticker.sticker.motif === "スイーツ" && "🍓"}
+                  {placed.userSticker.sticker.motif === "動物" && "🐰"}
+                  {placed.userSticker.sticker.motif === "星" && "⭐"}
+                  {placed.userSticker.sticker.motif === "ハート" && "💖"}
+                  {placed.userSticker.sticker.motif === "フラワー" && "🌸"}
+                  {placed.userSticker.sticker.motif === "その他" && "🍬"}
+                </span>
+              )}
+
+              {/* はがす（削除）ボタン */}
+              <button
+                type="button"
+                onClick={(e) => handleRemovePlaced(placed.id, e)}
+                title="はがす"
+                className="absolute -top-1.5 -right-1.5 opacity-80 group-hover:opacity-100 bg-rose-500 text-white p-1 rounded-full shadow-md transition hover:scale-110"
+              >
                 <Trash2 size={10} />
-              </div>
+              </button>
             </div>
-          </div>
+          </motion.div>
         ))}
 
         {placedStickers.length === 0 && (

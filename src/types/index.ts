@@ -22,6 +22,7 @@ export type MotifType =
 
 export interface StickerMaster {
   id: string;
+  code?: string;             // 市販カタログ番号 (例: FD-01, YA-03)
   seriesName: string;
   name: string;
   motif: MotifType;

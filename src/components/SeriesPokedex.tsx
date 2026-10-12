@@ -121,18 +121,26 @@ export default function SeriesPokedex({
                     <div className="w-12 h-12 my-1 flex items-center justify-center">
                       {isOwned ? (
                         <div
-                          className="sticker-drop w-10 h-10 rounded-2xl flex items-center justify-center text-xl shadow-sm"
+                          className="sticker-drop w-10 h-10 rounded-2xl flex items-center justify-center text-xl shadow-sm p-1 overflow-hidden"
                           style={{ backgroundColor: master.color }}
                         >
-                          <div className="sticker-shine" />
-                          <span>
-                            {master.motif === "スイーツ" && "🍓"}
-                            {master.motif === "動物" && "🐰"}
-                            {master.motif === "星" && "⭐"}
-                            {master.motif === "ハート" && "💖"}
-                            {master.motif === "フラワー" && "🌸"}
-                            {master.motif === "その他" && "🍬"}
-                          </span>
+                          <div className="sticker-shine pointer-events-none" />
+                          {userSticker?.userPhotoUrl ? (
+                            <img
+                              src={userSticker.userPhotoUrl}
+                              alt={master.name}
+                              className="w-full h-full object-contain filter drop-shadow-sm rounded-xl"
+                            />
+                          ) : (
+                            <span>
+                              {master.motif === "スイーツ" && "🍓"}
+                              {master.motif === "動物" && "🐰"}
+                              {master.motif === "星" && "⭐"}
+                              {master.motif === "ハート" && "💖"}
+                              {master.motif === "フラワー" && "🌸"}
+                              {master.motif === "その他" && "🍬"}
+                            </span>
+                          )}
                         </div>
                       ) : (
                         <div className="w-10 h-10 rounded-2xl bg-slate-200/80 flex items-center justify-center text-slate-400 text-lg">
@@ -146,7 +154,7 @@ export default function SeriesPokedex({
                         isOwned ? "text-slate-800" : "text-slate-400"
                       }`}
                     >
-                      {master.name}
+                      {master.code ? `${master.code} ${master.name}` : master.name}
                     </span>
 
                     {/* 未所持時のヒント */}

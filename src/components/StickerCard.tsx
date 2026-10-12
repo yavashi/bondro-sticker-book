@@ -78,27 +78,44 @@ export default function StickerCard({
           }}
         >
           {/* 反射光ハイライト */}
-          <div className="sticker-shine" />
+          <div className="sticker-shine pointer-events-none" />
 
-          {/* モチーフアイコン / 絵文字代替 */}
-          <span className="text-3xl filter drop-shadow-sm select-none transform group-hover:scale-110 transition-transform duration-200">
-            {sticker.motif === "スイーツ" && "🍓"}
-            {sticker.motif === "動物" && "🐰"}
-            {sticker.motif === "星" && "⭐"}
-            {sticker.motif === "ハート" && "💖"}
-            {sticker.motif === "フラワー" && "🌸"}
-            {sticker.motif === "ジュエリー" && "💎"}
-            {sticker.motif === "キャラクター" && "✨"}
-            {sticker.motif === "その他" && "🍬"}
-          </span>
+          {/* 実写画像 または モチーフアイコン */}
+          {userSticker.userPhotoUrl ? (
+            <div className="relative z-10 w-full h-full p-2 flex items-center justify-center">
+              <img
+                src={userSticker.userPhotoUrl}
+                alt={sticker.name}
+                className="w-full h-full object-contain filter drop-shadow-md transform group-hover:scale-110 transition-transform duration-200 rounded-2xl"
+              />
+            </div>
+          ) : (
+            <span className="text-3xl filter drop-shadow-sm select-none transform group-hover:scale-110 transition-transform duration-200">
+              {sticker.motif === "スイーツ" && "🍓"}
+              {sticker.motif === "動物" && "🐰"}
+              {sticker.motif === "星" && "⭐"}
+              {sticker.motif === "ハート" && "💖"}
+              {sticker.motif === "フラワー" && "🌸"}
+              {sticker.motif === "ジュエリー" && "💎"}
+              {sticker.motif === "キャラクター" && "✨"}
+              {sticker.motif === "その他" && "🍬"}
+            </span>
+          )}
         </div>
       </div>
 
-      {/* シール名 */}
+      {/* シール名 & カタログコード */}
       <div className="w-full text-center mt-1">
-        <h4 className="text-xs font-bold text-slate-800 truncate">
-          {sticker.name}
-        </h4>
+        <div className="flex items-center justify-center gap-1">
+          {sticker.code && (
+            <span className="text-[9px] font-black bg-pink-100 text-pink-600 px-1.5 py-0.5 rounded shrink-0">
+              {sticker.code}
+            </span>
+          )}
+          <h4 className="text-xs font-bold text-slate-800 truncate">
+            {sticker.name}
+          </h4>
+        </div>
         <span className="text-[10px] text-pink-500 bg-pink-50 px-1.5 py-0.5 rounded-full inline-block mt-0.5">
           {sticker.finishType}
         </span>

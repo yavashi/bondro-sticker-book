@@ -6,8 +6,9 @@ import StickerCard from "@/components/StickerCard";
 import StickerDetailModal from "@/components/StickerDetailModal";
 import DecoSheet from "@/components/DecoSheet";
 import SeriesPokedex from "@/components/SeriesPokedex";
+import ProfileEditModal from "@/components/ProfileEditModal";
 import { UserSticker } from "@/types";
-import { Sparkles, Repeat, Camera, Copy, Check, LayoutGrid, Palette, BookMarked, Gift, Settings, ArrowUpDown, Volume2, VolumeX } from "lucide-react";
+import { Sparkles, Repeat, Camera, Copy, Check, LayoutGrid, Palette, BookMarked, Gift, Settings, ArrowUpDown, Volume2, VolumeX, UserPen } from "lucide-react";
 import Link from "next/link";
 import { sounds } from "@/lib/sound";
 
@@ -22,6 +23,7 @@ export default function StickerBookPage() {
   const [copied, setCopied] = useState(false);
   const [showGiftBox, setShowGiftBox] = useState(false);
   const [isMuted, setIsMuted] = useState(() => sounds.getMuted());
+  const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
 
   const handleToggleSound = () => {
     const nextMuted = sounds.toggleMuted();
@@ -74,13 +76,33 @@ export default function StickerBookPage() {
       <header className="px-5 pt-6 pb-4 bg-gradient-to-b from-pink-100/70 to-pink-50/40 border-b border-pink-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-white shadow-sm border border-pink-200 flex items-center justify-center text-2xl select-none">
-              {myProfile.avatarUrl}
-            </div>
+            <button
+              type="button"
+              onClick={() => setIsProfileEditOpen(true)}
+              className="relative group cursor-pointer focus:outline-none"
+              title="プロフィールを変更"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-white shadow-sm border border-pink-200 flex items-center justify-center text-2xl select-none group-hover:scale-105 transition-transform">
+                {myProfile.avatarUrl}
+              </div>
+              <div className="absolute -bottom-1 -right-1 bg-pink-500 text-white p-1 rounded-full shadow-xs text-xs">
+                <UserPen size={10} />
+              </div>
+            </button>
             <div>
-              <h1 className="text-base font-black text-slate-800">
-                {myProfile.username}のシール帳
-              </h1>
+              <div className="flex items-center gap-1.5">
+                <h1 className="text-base font-black text-slate-800">
+                  {myProfile.username}のシール帳
+                </h1>
+                <button
+                  type="button"
+                  onClick={() => setIsProfileEditOpen(true)}
+                  className="text-pink-400 hover:text-pink-600 transition p-0.5"
+                  title="プロフィールを変更"
+                >
+                  <UserPen size={13} />
+                </button>
+              </div>
               <button
                 onClick={handleCopyCode}
                 className="flex items-center gap-1 text-[11px] font-bold text-pink-600 bg-white/80 px-2 py-0.5 rounded-full border border-pink-200 shadow-2xs hover:bg-white transition"
@@ -345,6 +367,12 @@ export default function StickerBookPage() {
           </div>
         </div>
       )}
+
+      {/* プロフィール編集モーダル */}
+      <ProfileEditModal
+        isOpen={isProfileEditOpen}
+        onClose={() => setIsProfileEditOpen(false)}
+      />
     </div>
   );
 }

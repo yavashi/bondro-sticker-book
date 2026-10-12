@@ -16,6 +16,60 @@ interface DraftSticker {
   color: string;
   finishType: FinishType;
   quantity: number;
+  catalogCode?: string;
+  croppedPhotoUrl?: string;
+}
+
+/**
+ * box_2d: [ymin, xmin, ymax, xmax] (0〜1000の正規化座標) を用いて
+ * 元写真から個別のシールを切り出し (240px x 240px 正方形に中央配置)
+ */
+function cropStickerImage(
+  base64: string,
+  box_2d?: number[]
+): Promise<string> {
+  return new Promise((resolve) => {
+    if (!box_2d || !Array.isArray(box_2d) || box_2d.length < 4) {
+      resolve(base64);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      const [rawYmin, rawXmin, rawYmax, rawXmax] = box_2d;
+      const ymin = Math.max(0, Math.min(1000, rawYmin)) / 1000;
+      const xmin = Math.max(0, Math.min(1000, rawXmin)) / 1000;
+      const ymax = Math.max(0, Math.min(1000, rawYmax)) / 1000;
+      const xmax = Math.max(0, Math.min(1000, rawXmax)) / 1000;
+
+      // シールの厚みやぷっくりした輪郭を切り落とさないよう、周囲に8%のマージンを付与
+      const boxH = Math.max(0.01, ymax - ymin);
+      const boxW = Math.max(0.01, xmax - xmin);
+      const padY = boxH * 0.08;
+      const padX = boxW * 0.08;
+
+      const cropY = Math.max(0, (ymin - padY) * img.height);
+      const cropX = Math.max(0, (xmin - padX) * img.width);
+      const cropW = Math.min(img.width - cropX, (boxW + padX * 2) * img.width);
+      const cropH = Math.min(img.height - cropY, (boxH + padY * 2) * img.height);
+
+      // サムネイル用に適度なサイズ (最大240px)
+      const targetSize = 240;
+      const scale = Math.min(targetSize / cropW, targetSize / cropH, 1);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(cropW * scale);
+      canvas.height = Math.round(cropH * scale);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(base64);
+        return;
+      }
+
+      ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", 0.75));
+    };
+    img.onerror = () => resolve(base64);
+    img.src = base64;
+  });
 }
 
 /**
@@ -157,22 +211,34 @@ export default function ScanStickerPage() {
       }
 
       if (data.stickers && Array.isArray(data.stickers)) {
-        const formatted: DraftSticker[] = data.stickers.map((s: {
-          name_candidate?: string;
-          series_candidate?: string;
-          motif?: string;
-          primary_color?: string;
-          finish_type?: string;
-          estimated_count?: number;
-        }, idx: number) => ({
-          id: `draft-${Date.now()}-${idx}`,
-          name: s.name_candidate || "ぷっくりシール",
-          series: s.series_candidate || "スイートコレクション",
-          motif: (s.motif as MotifType) || "スイーツ",
-          color: s.primary_color || "#FF69B4",
-          finishType: (s.finish_type as FinishType) || "クリアドロップ",
-          quantity: s.estimated_count || 1,
-        }));
+        const formatted: DraftSticker[] = await Promise.all(
+          data.stickers.map(async (s: {
+            name_candidate?: string;
+            series_candidate?: string;
+            catalog_code?: string;
+            motif?: string;
+            primary_color?: string;
+            finish_type?: string;
+            estimated_count?: number;
+            box_2d?: number[];
+          }, idx: number) => {
+            let croppedPhoto: string | undefined = undefined;
+            if (s.box_2d && Array.isArray(s.box_2d) && s.box_2d.length === 4) {
+              croppedPhoto = await cropStickerImage(imagePreview, s.box_2d);
+            }
+            return {
+              id: `draft-${Date.now()}-${idx}`,
+              name: s.name_candidate || "ぷっくりシール",
+              series: s.series_candidate || "スイートコレクション",
+              motif: (s.motif as MotifType) || "スイーツ",
+              color: s.primary_color || "#FF69B4",
+              finishType: (s.finish_type as FinishType) || "クリアドロップ",
+              quantity: s.estimated_count || 1,
+              catalogCode: s.catalog_code,
+              croppedPhotoUrl: croppedPhoto,
+            };
+          })
+        );
         setDraftStickers(formatted);
       } else {
         setErrorMessage("シールを検出できませんでした。手動でシールを追加できます。");
@@ -229,12 +295,12 @@ export default function ScanStickerPage() {
 
   // シール帳へ登録確定 (サムネイル軽量化で保存)
   const handleSaveAll = async () => {
-    let photoThumbnail: string | undefined = undefined;
+    let fallbackPhotoThumbnail: string | undefined = undefined;
     if (imagePreview) {
       try {
-        photoThumbnail = await generateThumbnailFromBase64(imagePreview, 240, 0.6);
+        fallbackPhotoThumbnail = await generateThumbnailFromBase64(imagePreview, 240, 0.6);
       } catch {
-        photoThumbnail = imagePreview;
+        fallbackPhotoThumbnail = imagePreview;
       }
     }
 
@@ -246,7 +312,8 @@ export default function ScanStickerPage() {
         color: draft.color,
         finishType: draft.finishType,
         quantity: draft.quantity,
-        userPhotoUrl: photoThumbnail,
+        catalogCode: draft.catalogCode,
+        userPhotoUrl: draft.croppedPhotoUrl || fallbackPhotoThumbnail,
       });
     });
     setIsDone(true);
@@ -391,29 +458,46 @@ export default function ScanStickerPage() {
                   key={draft.id}
                   className="p-3 bg-white rounded-2xl border border-pink-100 shadow-2xs flex items-center justify-between gap-2.5"
                 >
-                  {/* シールアイコン */}
+                  {/* シールアイコン・実写プレビュー */}
                   <div
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-inner shrink-0"
-                    style={{ backgroundColor: draft.color }}
+                    className="w-14 h-14 rounded-2xl flex items-center justify-center relative overflow-hidden border border-pink-200 shadow-inner shrink-0 p-1"
+                    style={{ backgroundColor: draft.color || "#FFE4E6" }}
                   >
-                    {draft.motif === "スイーツ" && "🍓"}
-                    {draft.motif === "動物" && "🐰"}
-                    {draft.motif === "星" && "⭐"}
-                    {draft.motif === "ハート" && "💖"}
-                    {draft.motif === "フラワー" && "🌸"}
-                    {draft.motif === "ジュエリー" && "💎"}
-                    {draft.motif === "キャラクター" && "✨"}
-                    {draft.motif === "その他" && "🍬"}
+                    {draft.croppedPhotoUrl ? (
+                      <img
+                        src={draft.croppedPhotoUrl}
+                        alt={draft.name}
+                        className="w-full h-full object-contain filter drop-shadow-sm rounded-xl"
+                      />
+                    ) : (
+                      <span className="text-2xl filter drop-shadow select-none">
+                        {draft.motif === "スイーツ" && "🍓"}
+                        {draft.motif === "動物" && "🐰"}
+                        {draft.motif === "星" && "⭐"}
+                        {draft.motif === "ハート" && "💖"}
+                        {draft.motif === "フラワー" && "🌸"}
+                        {draft.motif === "ジュエリー" && "💎"}
+                        {draft.motif === "キャラクター" && "✨"}
+                        {draft.motif === "その他" && "🍬"}
+                      </span>
+                    )}
                   </div>
 
                   {/* 編集フォーム */}
                   <div className="flex-1 flex flex-col gap-1 min-w-0">
-                    <input
-                      type="text"
-                      value={draft.name}
-                      onChange={(e) => updateDraftName(draft.id, e.target.value)}
-                      className="text-xs font-bold text-slate-800 border-b border-pink-200 focus:border-pink-500 outline-none pb-0.5 bg-transparent"
-                    />
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={draft.name}
+                        onChange={(e) => updateDraftName(draft.id, e.target.value)}
+                        className="text-xs font-bold text-slate-800 border-b border-pink-200 focus:border-pink-500 outline-none pb-0.5 bg-transparent flex-1"
+                      />
+                      {draft.catalogCode && draft.catalogCode !== "CUSTOM" && (
+                        <span className="text-[9px] font-black bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded-full shrink-0">
+                          {draft.catalogCode}
+                        </span>
+                      )}
+                    </div>
                     <div className="flex gap-1.5 items-center">
                       <select
                         value={draft.motif}
