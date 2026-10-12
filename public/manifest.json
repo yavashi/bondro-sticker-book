@@ -1,0 +1,21 @@
+{
+  "name": "ボンドロシール帳 - ボンボンドロップシール",
+  "short_name": "ボンドロシール帳",
+  "description": "ボンボンドロップシールのAI画像認識登録・コレクション管理・フレンド交換支援アプリ",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFF5F7",
+  "theme_color": "#FFB6C1",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
