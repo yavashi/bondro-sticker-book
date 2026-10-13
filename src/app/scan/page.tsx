@@ -151,7 +151,7 @@ function generateThumbnailFromBase64(
 
 export default function ScanStickerPage() {
   const router = useRouter();
-  const { addStickerFromDraft } = useStickers();
+  const { addStickersBatch } = useStickers();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -293,7 +293,7 @@ export default function ScanStickerPage() {
     );
   };
 
-  // シール帳へ登録確定 (サムネイル軽量化で保存)
+  // シール帳へ登録確定 (サムネイル軽量化 & 一括バッチ保存)
   const handleSaveAll = async () => {
     let fallbackPhotoThumbnail: string | undefined = undefined;
     if (imagePreview) {
@@ -304,18 +304,18 @@ export default function ScanStickerPage() {
       }
     }
 
-    draftStickers.forEach((draft) => {
-      addStickerFromDraft({
-        name: draft.name,
-        series: draft.series,
-        motif: draft.motif,
-        color: draft.color,
-        finishType: draft.finishType,
-        quantity: draft.quantity,
-        catalogCode: draft.catalogCode,
-        userPhotoUrl: draft.croppedPhotoUrl || fallbackPhotoThumbnail,
-      });
-    });
+    const itemsToAdd = draftStickers.map((draft) => ({
+      name: draft.name,
+      series: draft.series,
+      motif: draft.motif,
+      color: draft.color,
+      finishType: draft.finishType,
+      quantity: draft.quantity,
+      catalogCode: draft.catalogCode,
+      userPhotoUrl: draft.croppedPhotoUrl || fallbackPhotoThumbnail,
+    }));
+
+    addStickersBatch(itemsToAdd);
     setIsDone(true);
     setTimeout(() => {
       router.push("/");

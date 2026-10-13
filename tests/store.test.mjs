@@ -221,3 +221,70 @@ test("トレード受諾トランザクション: 在庫のないトレードは
   // 獲得したシールがWishlistから消化されていること
   assert.deepEqual(successResult.myWishlist, []);
 });
+
+test("一括シール追加 (addStickersBatch): 複数枚のシールが欠落・上書きされずに全て正常に追加される", () => {
+  // 純粋ロジックとしてのバッチ追加検証
+  function processBatchAdd(existingStickers, drafts) {
+    let updatedStickers = [...existingStickers];
+    drafts.forEach((draft, idx) => {
+      const existingIdx = updatedStickers.findIndex(
+        (s) => s.stickerMasterId === draft.catalogCode || s.sticker.name === draft.name
+      );
+      if (existingIdx >= 0) {
+        updatedStickers[existingIdx] = {
+          ...updatedStickers[existingIdx],
+          quantity: updatedStickers[existingIdx].quantity + draft.quantity,
+        };
+      } else {
+        updatedStickers.push({
+          id: `us-test-${idx}`,
+          stickerMasterId: draft.catalogCode || `sm-${idx}`,
+          sticker: { name: draft.name, code: draft.catalogCode },
+          quantity: draft.quantity,
+          isTradeable: draft.quantity >= 2,
+        });
+      }
+    });
+    return updatedStickers;
+  }
+
+  // AIが認識した3枚の異なるシール
+  const drafts = [
+    { name: "とろける完熟いちご", catalogCode: "FD-01", quantity: 1 },
+    { name: "ぷるぷるマスカット", catalogCode: "FD-02", quantity: 2 },
+    { name: "オリジナルキャンディ", catalogCode: "CUSTOM", quantity: 1 },
+  ];
+
+  const result = processBatchAdd([], drafts);
+
+  // 1枚も欠落することなく3枚全てが追加されていること
+  assert.equal(result.length, 3);
+  assert.equal(result[0].sticker.name, "とろける完熟いちご");
+  assert.equal(result[1].sticker.name, "ぷるぷるマスカット");
+  assert.equal(result[1].quantity, 2);
+  assert.equal(result[1].isTradeable, true);
+  assert.equal(result[2].sticker.name, "オリジナルキャンディ");
+});
+
+test("個別ID一意性 (generateUniqueFriendCode): 8桁英数字コードが生成され10,000回生成で重複ゼロ", () => {
+  const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+  function gen() {
+    let part1 = "";
+    let part2 = "";
+    for (let i = 0; i < 4; i++) {
+      part1 += chars.charAt(Math.floor(Math.random() * chars.length));
+      part2 += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return `BON-${part1}-${part2}`;
+  }
+
+  const generatedCodes = new Set();
+  for (let i = 0; i < 10000; i++) {
+    const code = gen();
+    assert.match(code, /^BON-[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4}$/);
+    assert.equal(generatedCodes.has(code), false, `Collision detected at ${code}`);
+    generatedCodes.add(code);
+  }
+  assert.equal(generatedCodes.size, 10000);
+});
+

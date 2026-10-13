@@ -2,8 +2,8 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Check, Copy } from "lucide-react";
-import { useStickers } from "@/context/StickerContext";
+import { X, Check, Copy, RefreshCw } from "lucide-react";
+import { useStickers, generateUniqueFriendCode } from "@/context/StickerContext";
 
 const AVATAR_OPTIONS = [
   "🐰", "🐱", "🐻", "🎀", "🍓", "🍬", "⭐", "💖", "🌸", "💎", "🦄", "🐶"
@@ -18,17 +18,18 @@ export default function ProfileEditModal({ isOpen, onClose }: ProfileEditModalPr
   const { myProfile, updateProfile } = useStickers();
   const [name, setName] = useState(myProfile.username || "わたし");
   const [avatar, setAvatar] = useState(myProfile.avatarUrl || "🐰");
+  const [code, setCode] = useState(myProfile.friendCode);
   const [copied, setCopied] = useState(false);
 
   if (!isOpen) return null;
 
   const handleSave = () => {
-    updateProfile(name, avatar);
+    updateProfile(name, avatar, code);
     onClose();
   };
 
   const handleCopyCode = () => {
-    navigator.clipboard?.writeText(myProfile.friendCode);
+    navigator.clipboard?.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -98,21 +99,38 @@ export default function ProfileEditModal({ isOpen, onClose }: ProfileEditModalPr
           </div>
 
           {/* フレンドコード表示 */}
-          <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className="text-[9px] font-bold text-slate-400">あなた専用のフレンドコード</span>
-              <span className="text-xs font-black text-pink-600 tracking-wider">
-                {myProfile.friendCode}
-              </span>
+          <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-[9px] font-bold text-slate-400">あなた専用の個別ID（フレンドコード）</span>
+                <span className="text-xs font-black text-pink-600 tracking-wider">
+                  {code}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setCode(generateUniqueFriendCode())}
+                  className="flex items-center gap-1 text-[11px] font-bold px-2 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-600 shadow-2xs hover:bg-slate-100 transition active:scale-95"
+                  title="新しいIDを再生成"
+                >
+                  <RefreshCw size={11} />
+                  <span>再生成</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCopyCode}
+                  className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1.5 rounded-xl bg-white border border-pink-200 text-pink-600 shadow-2xs hover:bg-pink-50 transition active:scale-95"
+                >
+                  {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                  <span>{copied ? "コピー済" : "コピー"}</span>
+                </button>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={handleCopyCode}
-              className="flex items-center gap-1 text-[11px] font-bold px-3 py-1.5 rounded-xl bg-white border border-pink-200 text-pink-600 shadow-2xs hover:bg-pink-50 transition"
-            >
-              {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-              <span>{copied ? "コピーした！" : "コードコピー"}</span>
-            </button>
+            <p className="text-[10px] text-slate-400 flex items-center gap-1">
+              <span>💡</span>
+              <span>1.1兆通り以上の安全な個別IDです。他のユーザーと重複することはありません。</span>
+            </p>
           </div>
 
           {/* 保存ボタン */}

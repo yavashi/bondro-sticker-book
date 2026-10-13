@@ -17,26 +17,29 @@ import {
   MOCK_STICKER_MASTERS,
 } from "@/lib/mockData";
 
+export interface DraftStickerInput {
+  name: string;
+  series: string;
+  motif: MotifType;
+  color: string;
+  finishType: FinishType;
+  quantity: number;
+  userPhotoUrl?: string;
+  catalogCode?: string;
+}
+
 interface StickerContextType {
   myProfile: UserProfile;
   friends: UserProfile[];
   masters: StickerMaster[];
   proposals: TradeProposal[];
   giftMessages: GiftMessage[];
-  updateProfile: (username: string, avatarUrl: string) => void;
+  updateProfile: (username: string, avatarUrl: string, friendCode?: string) => void;
   updateStickerQuantity: (stickerMasterId: string, delta: number) => void;
   toggleTradeable: (stickerMasterId: string) => void;
   toggleWishlist: (stickerMasterId: string) => void;
-  addStickerFromDraft: (draft: {
-    name: string;
-    series: string;
-    motif: MotifType;
-    color: string;
-    finishType: FinishType;
-    quantity: number;
-    userPhotoUrl?: string;
-    catalogCode?: string;
-  }) => void;
+  addStickerFromDraft: (draft: DraftStickerInput) => void;
+  addStickersBatch: (drafts: DraftStickerInput[]) => void;
   addFriendByCode: (friendCode: string) => boolean;
   createTradeProposal: (
     friendId: string,
@@ -49,6 +52,21 @@ interface StickerContextType {
   exportBackup: () => string;
   importBackup: (jsonString: string) => boolean;
   resetToDefault: () => void;
+}
+
+/**
+ * 混同しやすい文字 (0, O, 1, I) を除外した32文字から生成する8桁ユニークコード (BON-XXXX-YYYY)
+ * 32^8 = 1,099,511,627,776 (約1.1兆通り) の組み合わせがあり、複数ユーザー間での重複は実質ゼロです。
+ */
+export function generateUniqueFriendCode(): string {
+  const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+  let part1 = "";
+  let part2 = "";
+  for (let i = 0; i < 4; i++) {
+    part1 += chars.charAt(Math.floor(Math.random() * chars.length));
+    part2 += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `BON-${part1}-${part2}`;
 }
 
 const StickerContext = createContext<StickerContextType | undefined>(undefined);
@@ -387,28 +405,38 @@ export const StickerProvider: React.FC<{ children: React.ReactNode }> = ({
     const saved = localStorage.getItem("bondro_my_profile");
     if (saved) {
       try {
-        setMyProfile(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        // 短い仮コードや初期コードの場合は安全な1.1兆通りのユニークコードへ自動アップグレード
+        if (
+          !parsed.friendCode ||
+          parsed.friendCode === "BON-1001" ||
+          /^BON-\d{4}$/.test(parsed.friendCode)
+        ) {
+          parsed.friendCode = generateUniqueFriendCode();
+        }
+        setMyProfile(parsed);
       } catch (e) {
         console.error("Failed to parse saved profile", e);
       }
     } else {
-      // 初回訪問時: ランダムな一意のフレンドコードを自動発行
-      const randomCode = `BON-${Math.floor(1000 + Math.random() * 9000)}`;
+      // 初回訪問時: ランダムな一意のフレンドコード (BON-XXXX-YYYY) を自動発行
+      const uniqueCode = generateUniqueFriendCode();
       setMyProfile((prev) => ({
         ...prev,
         username: "わたし",
-        friendCode: randomCode,
+        friendCode: uniqueCode,
       }));
     }
   }, []);
 
-  // プロフィール更新 (ニックネーム・アバター変更)
-  const updateProfile = (username: string, avatarUrl: string) => {
+  // プロフィール更新 (ニックネーム・アバター・フレンドコード変更)
+  const updateProfile = (username: string, avatarUrl: string, friendCode?: string) => {
     setMyProfile((prev) => {
       const updated = {
         ...prev,
         username: username.trim() || prev.username,
         avatarUrl: avatarUrl || prev.avatarUrl,
+        friendCode: friendCode?.trim().toUpperCase() || prev.friendCode,
       };
       localStorage.setItem("bondro_my_profile", JSON.stringify(updated));
       return updated;
@@ -490,105 +518,144 @@ export const StickerProvider: React.FC<{ children: React.ReactNode }> = ({
     }));
   };
 
-  // 写真認識ドラフトから新規シールを追加
-  const addStickerFromDraft = (draft: {
-    name: string;
-    series: string;
-    motif: MotifType;
-    color: string;
-    finishType: FinishType;
-    quantity: number;
-    userPhotoUrl?: string;
-    catalogCode?: string;
-  }) => {
-    // 市販カタログコードがある場合は最優先で公式マスターに紐付け
-    let master: StickerMaster | undefined;
-    if (draft.catalogCode && draft.catalogCode !== "CUSTOM") {
-      master = masters.find((m) => m.code === draft.catalogCode);
-    }
-    if (!master) {
-      master = masters.find(
-        (m) => m.name.toLowerCase() === draft.name.toLowerCase()
-      );
-    }
-    if (!master) {
-      master = {
-        id: `sm-${Date.now()}`,
-        code: draft.catalogCode || "CUSTOM",
-        name: draft.name,
-        seriesName: draft.series || "マイオリジナル",
-        motif: draft.motif || "スイーツ",
-        color: draft.color || "#FF69B4",
-        finishType: draft.finishType || "クリアドロップ",
-        rarity: "ノーマル",
-      };
-      setMasters((prev) => [...prev, master!]);
-    }
+  // 複数枚のシールを一括・原子的に追加（欠落やID衝突・上書きを防止）
+  const addStickersBatch = (drafts: DraftStickerInput[]) => {
+    if (!drafts || drafts.length === 0) return;
 
-    setMyProfile((prev) => {
-      const existing = prev.stickers.find(
-        (s) => s.stickerMasterId === master!.id
-      );
+    let currentMasters = [...masters];
+    const newMastersToAdd: StickerMaster[] = [];
 
-      if (existing) {
-        return {
-          ...prev,
-          stickers: prev.stickers.map((s) =>
-            s.stickerMasterId === master!.id
-              ? {
-                  ...s,
-                  quantity: s.quantity + draft.quantity,
-                  userPhotoUrl: draft.userPhotoUrl || s.userPhotoUrl,
-                  isTradeable: (s.quantity + draft.quantity) >= 2,
-                }
-              : s
-          ),
-        };
-      } else {
-        const newSticker: UserSticker = {
-          id: `us-${Date.now()}`,
-          userId: prev.id,
-          stickerMasterId: master!.id,
-          sticker: master!,
-          quantity: draft.quantity,
-          isTradeable: draft.quantity >= 2,
-          userPhotoUrl: draft.userPhotoUrl,
-          updatedAt: new Date().toISOString(),
-        };
-        return {
-          ...prev,
-          stickers: [...prev.stickers, newSticker],
-        };
+    const resolvedDrafts: Array<{
+      master: StickerMaster;
+      quantity: number;
+      userPhotoUrl?: string;
+    }> = [];
+
+    drafts.forEach((draft, idx) => {
+      let master: StickerMaster | undefined;
+
+      // カタログコードで検索 (例: FD-01)
+      if (draft.catalogCode && draft.catalogCode !== "CUSTOM") {
+        master = currentMasters.find((m) => m.code === draft.catalogCode);
       }
+      // 名前で検索
+      if (!master) {
+        const trimmedName = draft.name.trim().toLowerCase();
+        master = currentMasters.find(
+          (m) => m.name.trim().toLowerCase() === trimmedName
+        );
+      }
+
+      // 存在しなければマスター新規作成
+      if (!master) {
+        const uniqueKey = `${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`;
+        master = {
+          id: `sm-${uniqueKey}`,
+          code: draft.catalogCode || "CUSTOM",
+          name: draft.name.trim() || "ぷっくりシール",
+          seriesName: draft.series || "マイオリジナル",
+          motif: draft.motif || "スイーツ",
+          color: draft.color || "#FF69B4",
+          finishType: draft.finishType || "クリアドロップ",
+          rarity: "ノーマル",
+        };
+        currentMasters.push(master);
+        newMastersToAdd.push(master);
+      }
+
+      resolvedDrafts.push({
+        master,
+        quantity: Math.max(1, draft.quantity || 1),
+        userPhotoUrl: draft.userPhotoUrl,
+      });
+    });
+
+    if (newMastersToAdd.length > 0) {
+      setMasters((prev) => [...prev, ...newMastersToAdd]);
+    }
+
+    // myProfile.stickers を一括更新
+    setMyProfile((prev) => {
+      let updatedStickers = [...prev.stickers];
+
+      resolvedDrafts.forEach((item, idx) => {
+        const existingIdx = updatedStickers.findIndex(
+          (s) => s.stickerMasterId === item.master.id
+        );
+
+        if (existingIdx >= 0) {
+          const s = updatedStickers[existingIdx];
+          const newQty = s.quantity + item.quantity;
+          updatedStickers[existingIdx] = {
+            ...s,
+            quantity: newQty,
+            userPhotoUrl: item.userPhotoUrl || s.userPhotoUrl,
+            isTradeable: newQty >= 2,
+            updatedAt: new Date().toISOString(),
+          };
+        } else {
+          const uniqueId = `us-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`;
+          const newSticker: UserSticker = {
+            id: uniqueId,
+            userId: prev.id,
+            stickerMasterId: item.master.id,
+            sticker: item.master,
+            quantity: item.quantity,
+            isTradeable: item.quantity >= 2,
+            userPhotoUrl: item.userPhotoUrl,
+            updatedAt: new Date().toISOString(),
+          };
+          updatedStickers.push(newSticker);
+        }
+      });
+
+      return {
+        ...prev,
+        stickers: updatedStickers,
+      };
     });
   };
 
-  // フレンドコードでフレンド追加
-  const addFriendByCode = (code: string): boolean => {
-    const trimmed = code.trim().toUpperCase();
-    if (trimmed === myProfile.friendCode) return false;
-    // 既に登録済みかチェック
-    if (friends.some((f) => f.friendCode === trimmed)) return true;
+  // 単一シール追加 (addStickersBatch のラッパー)
+  const addStickerFromDraft = (draft: DraftStickerInput) => {
+    addStickersBatch([draft]);
+  };
 
-    // モックフレンドから一致を検索
-    if (trimmed === MOCK_FRIEND_YUI.friendCode) {
+  // フレンドコードでフレンド追加 (柔軟な正規化対応)
+  const addFriendByCode = (code: string): boolean => {
+    const raw = code.trim().toUpperCase();
+    const clean = raw.replace(/[^A-Z0-9]/g, "");
+    const normalizedMyCode = myProfile.friendCode.replace(/[^A-Z0-9]/g, "");
+    if (!clean || clean === normalizedMyCode) return false;
+
+    // 既に登録済みかチェック
+    if (friends.some((f) => f.friendCode.replace(/[^A-Z0-9]/g, "") === clean)) {
+      return true;
+    }
+
+    // モックフレンド判定
+    if (clean === MOCK_FRIEND_YUI.friendCode.replace(/[^A-Z0-9]/g, "")) {
       setFriends((prev) => [...prev, MOCK_FRIEND_YUI]);
       return true;
     }
-    if (trimmed === MOCK_FRIEND_AOI.friendCode) {
+    if (clean === MOCK_FRIEND_AOI.friendCode.replace(/[^A-Z0-9]/g, "")) {
       setFriends((prev) => [...prev, MOCK_FRIEND_AOI]);
       return true;
     }
 
-    // デモ用新規フレンド自動生成
+    // 新規フレンド作成 (表示用コード成形)
+    const formattedCode = clean.startsWith("BON")
+      ? (clean.length === 11 ? `${clean.slice(0, 3)}-${clean.slice(3, 7)}-${clean.slice(7)}` : raw)
+      : (clean.length === 8 ? `BON-${clean.slice(0, 4)}-${clean.slice(4)}` : `BON-${raw}`);
+
     const newFriend: UserProfile = {
-      id: `user-${Date.now()}`,
-      username: `フレンド (${trimmed})`,
-      friendCode: trimmed,
+      id: `user-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      username: `フレンド (${formattedCode})`,
+      friendCode: formattedCode,
       avatarUrl: "🎀",
       stickers: [
         {
-          id: `us-demo-${Date.now()}`,
+          id: `us-f-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
           userId: `user-${Date.now()}`,
           stickerMasterId: masters[0].id,
           sticker: masters[0],
@@ -615,6 +682,7 @@ export const StickerProvider: React.FC<{ children: React.ReactNode }> = ({
         toggleTradeable,
         toggleWishlist,
         addStickerFromDraft,
+        addStickersBatch,
         addFriendByCode,
         createTradeProposal,
         acceptTradeProposal,
