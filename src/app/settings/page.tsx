@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useRef } from "react";
-import { useStickers } from "@/context/StickerContext";
+import React, { useState, useRef, useEffect } from "react";
+import { useStickers, generateUniqueFriendCode } from "@/context/StickerContext";
 import {
   ArrowLeft,
   Download,
@@ -12,13 +12,21 @@ import {
   ShieldCheck,
   Check,
   BarChart3,
+  UserPen,
+  Copy,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { sounds } from "@/lib/sound";
 
+const AVATAR_OPTIONS = [
+  "🐰", "🐱", "🐻", "🎀", "🍓", "🍬", "⭐", "💖", "🌸", "💎", "🦄", "🐶"
+];
+
 export default function SettingsPage() {
   const {
     myProfile,
+    updateProfile,
     exportBackup,
     importBackup,
     resetToDefault,
@@ -29,6 +37,52 @@ export default function SettingsPage() {
     text: string;
     isError: boolean;
   } | null>(null);
+
+  // プロフィール編集ステート
+  const [profileName, setProfileName] = useState(myProfile.username || "わたし");
+  const [profileAvatar, setProfileAvatar] = useState(myProfile.avatarUrl || "🎀");
+  const [profileCode, setProfileCode] = useState(myProfile.friendCode);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [isSavedProfile, setIsSavedProfile] = useState(false);
+
+  useEffect(() => {
+    setProfileName(myProfile.username || "わたし");
+    setProfileAvatar(myProfile.avatarUrl || "🎀");
+    setProfileCode(myProfile.friendCode);
+  }, [myProfile]);
+
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateProfile(profileName, profileAvatar, profileCode);
+    sounds.playSparkle();
+    setIsSavedProfile(true);
+    setStatusMessage({
+      text: `プロフィールを「${profileName}」に更新しました！✨`,
+      isError: false,
+    });
+    setTimeout(() => {
+      setIsSavedProfile(false);
+      setStatusMessage(null);
+    }, 3000);
+  };
+
+  const handleCopyCode = () => {
+    navigator.clipboard?.writeText(profileCode);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
+
+  const handleRegenerateCode = () => {
+    const newCode = generateUniqueFriendCode();
+    setProfileCode(newCode);
+    updateProfile(profileName, profileAvatar, newCode);
+    sounds.playSparkle();
+    setStatusMessage({
+      text: `新しい個別IDを発行しました: ${newCode}`,
+      isError: false,
+    });
+    setTimeout(() => setStatusMessage(null), 3000);
+  };
 
   // コレクション統計計算
   const totalPieces = myProfile.stickers.reduce(
@@ -132,6 +186,122 @@ export default function SettingsPage() {
             {statusMessage.text}
           </div>
         )}
+
+        {/* プロフィール設定セクション */}
+        <section className="bg-white rounded-3xl p-5 border-2 border-pink-200 shadow-sm flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <UserPen size={18} className="text-pink-500" />
+              <h3 className="text-sm font-black text-slate-800">
+                プロフィール設定
+              </h3>
+            </div>
+            <span className="text-[10px] text-pink-500 bg-pink-50 font-bold px-2 py-0.5 rounded-full border border-pink-200">
+              いつでも変更OK
+            </span>
+          </div>
+
+          <form onSubmit={handleSaveProfile} className="flex flex-col gap-4">
+            {/* アバター選択 */}
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-16 h-16 rounded-3xl bg-pink-50 border-2 border-pink-300 shadow-inner flex items-center justify-center text-4xl select-none">
+                {profileAvatar}
+              </div>
+              <span className="text-[10px] font-bold text-slate-400">
+                アイコンをえらぶ
+              </span>
+              <div className="flex flex-wrap justify-center gap-1.5 max-w-xs">
+                {AVATAR_OPTIONS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => setProfileAvatar(emoji)}
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center text-lg transition transform hover:scale-110 ${
+                      profileAvatar === emoji
+                        ? "bg-pink-100 border-2 border-pink-400 scale-110 shadow-xs"
+                        : "bg-slate-50 border border-slate-200 hover:bg-pink-50"
+                    }`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* お名前入力 */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-black text-slate-700">
+                シール帳のお名前（ニックネーム）
+              </label>
+              <input
+                type="text"
+                value={profileName}
+                onChange={(e) => setProfileName(e.target.value)}
+                placeholder="あなたのお名前を入力してね"
+                maxLength={14}
+                className="w-full px-4 py-2.5 rounded-2xl border-2 border-pink-200 focus:border-pink-500 outline-none text-sm font-bold text-slate-800 bg-pink-50/20"
+              />
+              <span className="text-[10px] text-slate-400">
+                ※「{profileName || "わたし"}のシール帳」として表示されます
+              </span>
+            </div>
+
+            {/* 個別ID表示 & 再生成 */}
+            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[9px] font-bold text-slate-400 block">
+                    あなた専用の個別ID（フレンドコード）
+                  </span>
+                  <span className="text-xs font-black text-pink-600 tracking-wider">
+                    {profileCode}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handleRegenerateCode}
+                    className="flex items-center gap-1 text-[10px] font-bold px-2 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition shadow-2xs active:scale-95"
+                    title="新しいIDを再生成"
+                  >
+                    <RefreshCw size={11} />
+                    <span>再生成</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCopyCode}
+                    className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 rounded-xl bg-white border border-pink-200 text-pink-600 hover:bg-pink-50 transition shadow-2xs active:scale-95"
+                  >
+                    {copiedCode ? <Check size={11} className="text-emerald-500" /> : <Copy size={11} />}
+                    <span>{copiedCode ? "コピー済" : "コピー"}</span>
+                  </button>
+                </div>
+              </div>
+              <p className="text-[9px] text-slate-400 flex items-center gap-1 mt-0.5">
+                <span>💡</span>
+                <span>1.1兆通り以上の安全な個別ID（他の人と重複しません）</span>
+              </p>
+            </div>
+
+            {/* 保存ボタン */}
+            <button
+              type="submit"
+              className="w-full py-3 bg-gradient-to-r from-pink-500 to-rose-400 hover:opacity-95 text-white font-bold text-xs rounded-2xl shadow-md transition flex items-center justify-center gap-1.5 active:scale-98"
+            >
+              {isSavedProfile ? (
+                <>
+                  <Check size={15} />
+                  <span>プロフィールを保存しました！✨</span>
+                </>
+              ) : (
+                <>
+                  <Check size={15} />
+                  <span>プロフィールを変更・保存する ✨</span>
+                </>
+              )}
+            </button>
+          </form>
+        </section>
 
         {/* コレクション統計 */}
         <section className="bg-white rounded-3xl p-4 border border-pink-100 shadow-2xs">
