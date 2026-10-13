@@ -73,85 +73,90 @@ export default function StickerBookPage() {
   return (
     <div className="flex flex-col min-h-full">
       {/* ユーザープロファイル & ステータスヘッダー */}
-      <header className="px-5 pt-6 pb-4 bg-gradient-to-b from-pink-100/70 to-pink-50/40 border-b border-pink-100">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      <header className="px-4 pt-5 pb-3 bg-gradient-to-b from-pink-100/70 to-pink-50/40 border-b border-pink-100">
+        <div className="flex items-center justify-between gap-2">
+          {/* 左側: プロフィールアイコン ＆ お名前 */}
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <button
               type="button"
               onClick={() => setIsProfileEditOpen(true)}
-              className="relative group cursor-pointer focus:outline-none"
+              className="relative group cursor-pointer focus:outline-none shrink-0"
               title="プロフィールを変更"
             >
-              <div className="w-12 h-12 rounded-2xl bg-white shadow-sm border border-pink-200 flex items-center justify-center text-2xl select-none group-hover:scale-105 transition-transform">
+              <div className="w-11 h-11 rounded-2xl bg-white shadow-sm border border-pink-200 flex items-center justify-center text-2xl select-none group-hover:scale-105 transition-transform">
                 {myProfile.avatarUrl}
               </div>
-              <div className="absolute -bottom-1 -right-1 bg-pink-500 text-white p-1 rounded-full shadow-xs text-xs">
+              <div className="absolute -bottom-1 -right-1 bg-pink-500 text-white p-0.5 rounded-full shadow-xs text-xs">
                 <UserPen size={10} />
               </div>
             </button>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <h1 className="text-base font-black text-slate-800">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1">
+                <h1 className="text-sm font-black text-slate-800 truncate">
                   {myProfile.username}のシール帳
                 </h1>
                 <button
                   type="button"
                   onClick={() => setIsProfileEditOpen(true)}
-                  className="text-pink-400 hover:text-pink-600 transition p-0.5"
+                  className="text-pink-400 hover:text-pink-600 transition p-0.5 shrink-0"
                   title="プロフィールを変更"
                 >
-                  <UserPen size={13} />
+                  <UserPen size={12} />
                 </button>
               </div>
-              <button
-                onClick={handleCopyCode}
-                className="flex items-center gap-1 text-[11px] font-bold text-pink-600 bg-white/80 px-2 py-0.5 rounded-full border border-pink-200 shadow-2xs hover:bg-white transition"
-              >
-                <span>ID: {myProfile.friendCode}</span>
-                {copied ? <Check size={11} /> : <Copy size={11} />}
-              </button>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <button
+                  onClick={handleCopyCode}
+                  className="inline-flex items-center gap-1 text-[10px] font-bold text-pink-600 bg-white/90 px-2 py-0.5 rounded-full border border-pink-200 shadow-2xs hover:bg-white transition max-w-full"
+                  title="クリックしてフレンドコードをコピー"
+                >
+                  <span className="font-mono tracking-tight truncate">ID: {myProfile.friendCode}</span>
+                  {copied ? <Check size={10} className="shrink-0 text-emerald-500" /> : <Copy size={10} className="shrink-0" />}
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          {/* 右側: ツールボタン群 */}
+          <div className="flex items-center gap-1 shrink-0">
             {/* サウンドON/OFFボタン */}
             <button
               onClick={handleToggleSound}
-              className="p-2 bg-white rounded-2xl border border-pink-200 text-slate-500 shadow-2xs hover:text-pink-600 hover:bg-pink-50 transition"
+              className="p-1.5 bg-white rounded-xl border border-pink-200 text-slate-500 shadow-2xs hover:text-pink-600 hover:bg-pink-50 transition"
               title={isMuted ? "音を出す" : "ミュート"}
             >
-              {isMuted ? <VolumeX size={17} className="text-slate-400" /> : <Volume2 size={17} className="text-pink-500" />}
+              {isMuted ? <VolumeX size={15} className="text-slate-400" /> : <Volume2 size={15} className="text-pink-500" />}
             </button>
-
-            {/* 設定ボタン */}
-            <Link
-              href="/settings"
-              className="p-2 bg-white rounded-2xl border border-pink-200 text-slate-500 shadow-2xs hover:text-pink-600 hover:bg-pink-50 transition"
-              title="設定・データ管理"
-            >
-              <Settings size={17} />
-            </Link>
 
             {/* プレゼントBOXボタン */}
             <button
               onClick={() => setShowGiftBox(true)}
-              className="relative p-2 bg-white rounded-2xl border border-pink-200 text-pink-500 shadow-2xs hover:bg-pink-50 transition"
-              title="プレゼントBOX"
+              className="relative p-1.5 bg-white rounded-xl border border-pink-200 text-pink-500 shadow-2xs hover:bg-pink-50 transition"
+              title="プレゼント・交換メモBOX"
             >
-              <Gift size={17} />
+              <Gift size={15} />
               {unreadGifts.length > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-black text-white shadow-sm">
+                <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-500 text-[8px] font-black text-white shadow-sm">
                   {unreadGifts.length}
                 </span>
               )}
             </button>
 
+            {/* 設定ボタン */}
+            <Link
+              href="/settings"
+              className="p-1.5 bg-white rounded-xl border border-pink-200 text-slate-500 shadow-2xs hover:text-pink-600 hover:bg-pink-50 transition"
+              title="設定・データ管理"
+            >
+              <Settings size={15} />
+            </Link>
+
             <Link
               href="/scan"
-              className="flex items-center gap-1 bg-gradient-to-r from-pink-500 to-rose-400 text-white font-bold text-xs px-3 py-2 rounded-2xl shadow-sm hover:opacity-95 transition"
+              className="flex items-center gap-1 bg-gradient-to-r from-pink-500 to-rose-400 text-white font-bold text-xs px-2.5 py-1.5 rounded-xl shadow-sm hover:opacity-95 transition"
             >
-              <Camera size={14} />
-              <span>写真登録</span>
+              <Camera size={13} />
+              <span className="text-[11px]">撮影</span>
             </Link>
           </div>
         </div>

@@ -96,13 +96,17 @@ export default function FriendStickerBookPage({
             <div className="w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-xs">
               <Gift size={13} />
             </div>
-            <h2 className="text-xs font-black text-rose-700">
-              プレゼントできるシール ({giftableStickers.length}件)
-            </h2>
+            <div>
+              <h2 className="text-xs font-black text-rose-700">
+                プレゼントできるシール ({giftableStickers.length}件)
+              </h2>
+              <span className="text-[10px] text-rose-500 font-bold block">
+                リアル（手渡し・郵送）での受け渡しサポート
+              </span>
+            </div>
           </div>
           <p className="text-[11px] text-rose-600/90 leading-relaxed mb-3">
-            あなたがダブって持っていて、{friend.username}
-            がまだ持っていないシールです！プレゼントすると喜ばれます✨
+            あなたがダブって持っていて、{friend.username} がまだ持っていないシールです！「これプレゼントできるよ！」と伝えるメッセージカードを送れます✨
           </p>
 
           <div className="grid grid-cols-2 gap-2.5">
@@ -146,7 +150,7 @@ export default function FriendStickerBookPage({
                   </div>
                 </div>
 
-                {/* プレゼント送信ボタン */}
+                {/* プレゼントの気持ちを伝えるボタン */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -155,7 +159,7 @@ export default function FriendStickerBookPage({
                   className="w-full mt-1.5 py-1.5 bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-bold text-[10px] rounded-xl shadow-2xs flex items-center justify-center gap-1 transition"
                 >
                   <Gift size={11} />
-                  <span>プレゼントする 🎁</span>
+                  <span>プレゼントを提案 🎁</span>
                 </button>
               </div>
             ))}
@@ -167,25 +171,33 @@ export default function FriendStickerBookPage({
       {giftTargetSticker && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-3xl p-5 max-w-xs w-full border border-pink-200 shadow-2xl flex flex-col items-center">
-            <span className="text-3xl mb-1">🎁✨</span>
+            <span className="text-3xl mb-1">🎁💌</span>
             <h3 className="text-sm font-black text-slate-800">
-              {friend.username} にプレゼント
+              {friend.username} にプレゼントのお便り
             </h3>
             <p className="text-[11px] text-slate-500 text-center mt-0.5">
-              あなたの「{giftTargetSticker.sticker.name}」を贈ります
+              あなたの「{giftTargetSticker.sticker.name}」を渡せることを伝えます
             </p>
 
             {giftSentSuccess ? (
               <div className="my-6 text-center animate-fade-in">
                 <span className="text-4xl">💌🎉</span>
                 <p className="text-xs font-black text-emerald-600 mt-2">
-                  プレゼントを送信しました！
+                  プレゼントメッセージを送信しました！
+                </p>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  実際に手渡し・郵送して受け取ってもらいましょう✨
                 </p>
               </div>
             ) : (
               <div className="w-full mt-4 flex flex-col gap-3">
+                <div className="p-2.5 bg-pink-50/60 rounded-2xl border border-pink-200 text-[10px] text-slate-600 leading-snug">
+                  💡 <strong>現実の受け渡しサポート:</strong><br />
+                  「会ったときに渡すね！」「郵送するよ！」などの約束メッセージを送れます。
+                </div>
+
                 <label className="text-[10px] font-bold text-slate-500 block">
-                  メッセージカードをそえる:
+                  お友達へのメッセージ:
                 </label>
                 <textarea
                   value={giftMessageText}
@@ -212,11 +224,11 @@ export default function FriendStickerBookPage({
                       setTimeout(() => {
                         setGiftSentSuccess(false);
                         setGiftTargetSticker(null);
-                      }, 1500);
+                      }, 1800);
                     }}
                     className="flex-1 py-2 bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs font-black rounded-xl shadow-sm hover:opacity-95"
                   >
-                    おくる 💌
+                    メッセージを送る 💌
                   </button>
                 </div>
               </div>

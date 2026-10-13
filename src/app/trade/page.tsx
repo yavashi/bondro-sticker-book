@@ -60,10 +60,10 @@ export default function TradePage() {
           </div>
           <div>
             <h1 className="text-base font-black text-slate-800">
-              シールこうかん・プレゼント
+              リアル交換・プレゼント支援
             </h1>
             <p className="text-[11px] text-slate-500">
-              お互いのダブりシールから、ぴったりな交換の組み合わせをご案内！
+              会って渡したり郵送するための、お互いのダブり・交換候補をご案内！
             </p>
           </div>
         </div>

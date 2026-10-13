@@ -22,7 +22,16 @@ export default function StickerDetailModal({
 
   if (!userSticker) return null;
 
-  const { sticker, quantity, isTradeable } = userSticker;
+  // リアルタイムの最新所持データを取得 (未所持・削除時は元のスナップショットまたはデフォルト)
+  const currentSticker = (!isReadOnly
+    ? myProfile.stickers.find((s) => s.stickerMasterId === userSticker.stickerMasterId)
+    : userSticker) || {
+      ...userSticker,
+      quantity: 0,
+      isTradeable: false,
+    };
+
+  const { sticker, quantity, isTradeable } = currentSticker;
   const isDuplicate = quantity >= 2;
 
   return (

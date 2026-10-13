@@ -97,7 +97,7 @@ export default function FriendsPage() {
         >
           <input
             type="text"
-            placeholder="友達のコード (例: BON-1092)"
+            placeholder="友達のコード (例: BON-ABCD-1234)"
             value={friendCodeInput}
             onChange={(e) => setFriendCodeInput(e.target.value)}
             className="flex-1 text-xs px-3 py-1.5 outline-none font-bold text-slate-800 placeholder:text-slate-300"
