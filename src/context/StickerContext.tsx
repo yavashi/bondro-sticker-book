@@ -81,7 +81,7 @@ export const StickerProvider: React.FC<{ children: React.ReactNode }> = ({
   ]);
   const [masters, setMasters] = useState<StickerMaster[]>(MOCK_STICKER_MASTERS);
 
-  // 初期ギフトメッセージ (あおいちゃんから届いているプレゼント)
+  // 初期ギフトメッセージ (あおいちゃんから届いているプレゼントのお便り)
   const [giftMessages, setGiftMessages] = useState<GiftMessage[]>([
     {
       id: "gift-demo-1",
@@ -89,8 +89,8 @@ export const StickerProvider: React.FC<{ children: React.ReactNode }> = ({
       senderUsername: MOCK_FRIEND_AOI.username,
       senderAvatar: MOCK_FRIEND_AOI.avatarUrl,
       receiverId: INITIAL_MY_PROFILE.id,
-      stickerMaster: MOCK_STICKER_MASTERS[2], // オーロラスター
-      message: "いつもシール帳見せてくれてありがとう！ダブったからプレゼントするね🎁✨",
+      stickerMaster: MOCK_STICKER_MASTERS[2], // シャインマスカットジュレ
+      message: "これダブってるから、今度会ったときにプレゼントするね！🎁✨",
       status: "UNOPENED",
       createdAt: new Date().toISOString(),
     },

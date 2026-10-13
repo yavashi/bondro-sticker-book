@@ -292,22 +292,22 @@ export default function StickerBookPage() {
         onClose={() => setSelectedSticker(null)}
       />
 
-      {/* プレゼントBOXモーダル */}
+      {/* プレゼント・交換お便りBOXモーダル */}
       {showGiftBox && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-3xl p-5 max-w-xs w-full border border-pink-200 shadow-2xl flex flex-col items-center">
             <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-500 flex items-center justify-center mb-2">
               <Gift size={24} />
             </div>
-            <h3 className="text-sm font-black text-slate-800">プレゼントBOX 🎁</h3>
+            <h3 className="text-sm font-black text-slate-800">プレゼントのお便り 💌</h3>
             <p className="text-[11px] text-slate-400 text-center mt-0.5">
-              お友達から贈られたシールが届いています
+              お友達から「これプレゼントできるよ！」とお便りが届いています
             </p>
 
-            <div className="w-full mt-4 flex flex-col gap-2.5 max-h-60 overflow-y-auto">
+            <div className="w-full mt-4 flex flex-col gap-2.5 max-h-64 overflow-y-auto">
               {giftMessages.filter((g) => g.receiverId === myProfile.id).length === 0 ? (
                 <div className="p-4 bg-slate-50 rounded-2xl text-center text-slate-400 text-xs">
-                  届いているプレゼントはありません 📭
+                  届いているお便りはありません 📭
                 </div>
               ) : (
                 giftMessages
@@ -315,30 +315,32 @@ export default function StickerBookPage() {
                   .map((gift) => (
                     <div
                       key={gift.id}
-                      className={`p-3 rounded-2xl border flex flex-col gap-2 ${
+                      className={`p-3 rounded-2xl border flex flex-col gap-2.5 ${
                         gift.status === "UNOPENED"
-                          ? "bg-rose-50/80 border-rose-300 ring-1 ring-rose-200"
-                          : "bg-slate-50 border-slate-200 opacity-60"
+                          ? "bg-gradient-to-br from-rose-50/90 to-pink-50/70 border-rose-300 ring-1 ring-rose-200"
+                          : "bg-slate-50 border-slate-200 opacity-70"
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
                           <span className="text-base">{gift.senderAvatar}</span>
                           <span className="text-xs font-bold text-slate-800">
-                            {gift.senderUsername}
+                            {gift.senderUsername} から
                           </span>
                         </div>
-                        <span className="text-[9px] text-slate-400">
-                          {gift.status === "UNOPENED" ? "未開封" : "受け取り済み"}
+                        <span className="text-[9px] text-rose-500 font-bold bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                          {gift.status === "UNOPENED" ? "新しいお便り" : "「ありがとう！」返信済み"}
                         </span>
                       </div>
 
-                      <p className="text-[11px] text-slate-600 bg-white/80 p-2 rounded-xl italic">
-                        &quot;{gift.message}&quot;
-                      </p>
+                      <div className="bg-white/90 p-2.5 rounded-xl border border-pink-100/80 shadow-2xs">
+                        <p className="text-[11px] text-slate-700 italic">
+                          &quot;{gift.message}&quot;
+                        </p>
+                      </div>
 
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-xs font-black text-pink-600 flex items-center gap-1">
+                      <div className="flex items-center justify-between pt-0.5">
+                        <span className="text-xs font-black text-pink-600 flex items-center gap-1 truncate max-w-[140px]">
                           🎁 {gift.stickerMaster.name}
                         </span>
 
@@ -348,13 +350,14 @@ export default function StickerBookPage() {
                               openGift(gift.id);
                               sounds.playSparkle();
                             }}
-                            className="bg-gradient-to-r from-rose-500 to-pink-500 text-white text-[11px] font-black px-3 py-1.5 rounded-xl shadow-xs hover:opacity-95 transition"
+                            className="bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white text-[11px] font-black px-3 py-1.5 rounded-xl shadow-xs transition flex items-center gap-1 active:scale-95"
                           >
-                            受け取る ✨
+                            <span>欲しい、ありがとう！💖</span>
                           </button>
                         ) : (
-                          <span className="text-[10px] text-slate-400 font-bold">
-                            受取完了
+                          <span className="text-[10px] text-emerald-600 font-black flex items-center gap-0.5">
+                            <Check size={11} />
+                            <span>気持ちを伝えました✨</span>
                           </span>
                         )}
                       </div>
