@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { useStickers, generateUniqueFriendCode } from "@/context/StickerContext";
+import { useStickers } from "@/context/StickerContext";
 import {
   ArrowLeft,
   Download,
@@ -14,7 +14,6 @@ import {
   BarChart3,
   UserPen,
   Copy,
-  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { sounds } from "@/lib/sound";
@@ -70,18 +69,6 @@ export default function SettingsPage() {
     navigator.clipboard?.writeText(profileCode);
     setCopiedCode(true);
     setTimeout(() => setCopiedCode(false), 2000);
-  };
-
-  const handleRegenerateCode = () => {
-    const newCode = generateUniqueFriendCode();
-    setProfileCode(newCode);
-    updateProfile(profileName, profileAvatar, newCode);
-    sounds.playSparkle();
-    setStatusMessage({
-      text: `新しい個別IDを発行しました: ${newCode}`,
-      isError: false,
-    });
-    setTimeout(() => setStatusMessage(null), 3000);
   };
 
   // コレクション統計計算
@@ -246,7 +233,7 @@ export default function SettingsPage() {
               </span>
             </div>
 
-            {/* 個別ID表示 & 再生成 */}
+            {/* 個別ID表示（固定・コピーのみ） */}
             <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
                 <div>
@@ -257,29 +244,18 @@ export default function SettingsPage() {
                     {profileCode}
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={handleRegenerateCode}
-                    className="flex items-center gap-1 text-[10px] font-bold px-2 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition shadow-2xs active:scale-95"
-                    title="新しいIDを再生成"
-                  >
-                    <RefreshCw size={11} />
-                    <span>再生成</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCopyCode}
-                    className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 rounded-xl bg-white border border-pink-200 text-pink-600 hover:bg-pink-50 transition shadow-2xs active:scale-95"
-                  >
-                    {copiedCode ? <Check size={11} className="text-emerald-500" /> : <Copy size={11} />}
-                    <span>{copiedCode ? "コピー済" : "コピー"}</span>
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleCopyCode}
+                  className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 rounded-xl bg-white border border-pink-200 text-pink-600 hover:bg-pink-50 transition shadow-2xs active:scale-95"
+                >
+                  {copiedCode ? <Check size={11} className="text-emerald-500" /> : <Copy size={11} />}
+                  <span>{copiedCode ? "コピー済" : "コピー"}</span>
+                </button>
               </div>
               <p className="text-[9px] text-slate-400 flex items-center gap-1 mt-0.5">
-                <span>💡</span>
-                <span>1.1兆通り以上の安全な個別ID（他の人と重複しません）</span>
+                <span>🔒</span>
+                <span>お友達があなたを登録するための固定IDです（他の人と重複しません）</span>
               </p>
             </div>
 

@@ -2,8 +2,8 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Check, Copy, RefreshCw } from "lucide-react";
-import { useStickers, generateUniqueFriendCode } from "@/context/StickerContext";
+import { X, Check, Copy } from "lucide-react";
+import { useStickers } from "@/context/StickerContext";
 
 const AVATAR_OPTIONS = [
   "🐰", "🐱", "🐻", "🎀", "🍓", "🍬", "⭐", "💖", "🌸", "💎", "🦄", "🐶"
@@ -98,7 +98,7 @@ export default function ProfileEditModal({ isOpen, onClose }: ProfileEditModalPr
             />
           </div>
 
-          {/* フレンドコード表示 */}
+          {/* フレンドコード表示（固定・コピーのみ） */}
           <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <div className="flex flex-col">
@@ -107,29 +107,18 @@ export default function ProfileEditModal({ isOpen, onClose }: ProfileEditModalPr
                   {code}
                 </span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setCode(generateUniqueFriendCode())}
-                  className="flex items-center gap-1 text-[11px] font-bold px-2 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-600 shadow-2xs hover:bg-slate-100 transition active:scale-95"
-                  title="新しいIDを再生成"
-                >
-                  <RefreshCw size={11} />
-                  <span>再生成</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCopyCode}
-                  className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1.5 rounded-xl bg-white border border-pink-200 text-pink-600 shadow-2xs hover:bg-pink-50 transition active:scale-95"
-                >
-                  {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-                  <span>{copied ? "コピー済" : "コピー"}</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleCopyCode}
+                className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1.5 rounded-xl bg-white border border-pink-200 text-pink-600 shadow-2xs hover:bg-pink-50 transition active:scale-95"
+              >
+                {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                <span>{copied ? "コピー済" : "コピー"}</span>
+              </button>
             </div>
             <p className="text-[10px] text-slate-400 flex items-center gap-1">
-              <span>💡</span>
-              <span>1.1兆通り以上の安全な個別IDです。他のユーザーと重複することはありません。</span>
+              <span>🔒</span>
+              <span>お友達があなたを登録するための固定IDです（他の人と重複しません）</span>
             </p>
           </div>
 
